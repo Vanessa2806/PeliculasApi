@@ -37,7 +37,7 @@ namespace PeliculasApi.Controllers
             return dto;
         }
 
-        [HttpGet("{id}", Name = "ObtenerActor")]
+        [HttpGet("{id:int}", Name = "ObtenerActor")]
         public async Task<ActionResult<ActorDTO>> Get(int id)
         {
             var entidad = await context.Actores.FirstOrDefaultAsync(x => x.Id == id);
@@ -70,7 +70,7 @@ namespace PeliculasApi.Controllers
             return new CreatedAtRouteResult("ObtenerActor", new {id = entidad.Id}, dto);
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("{id:int}")]
         public async Task<ActionResult> Put(int id, [FromForm] ActorCreacionDTO actorCreacionDTO)
         {
             var actorDB = await context.Actores.FirstOrDefaultAsync(x => x.Id == id);
@@ -94,7 +94,7 @@ namespace PeliculasApi.Controllers
             return NoContent();
         }
 
-        [HttpPatch]
+        [HttpPatch("{id:int}")]
         public async Task<ActionResult> Patch(int id, [FromBody] JsonPatchDocument<ActorPatchDTO> patchDocument)
         {
             if(patchDocument == null)
@@ -118,7 +118,7 @@ namespace PeliculasApi.Controllers
 
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{id:int}")]
         public async Task<ActionResult> Delete(int id)
         {
             var existe = await context.Actores.AnyAsync(x => x.Id == id);
