@@ -25,10 +25,22 @@ namespace PeliculasApi.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<PeliculaDTO>>> Get()
+        public async Task<ActionResult<PeliculasIndexDTO>> Get()
         {
-            var peliculas = await context.Peliculas.ToListAsync();
-            return mapper.Map<List<PeliculaDTO>>(peliculas);
+            var top = 5;
+            var hoy = DateTime.Today;
+
+            var proximosEstrenos = await context.Peliculas.Where(x => x.FechaEstreno > hoy)
+                                                          .OrderBy(x => x.FechaEstreno)
+                                                          .Take(top)
+                                                          .ToListAsync();
+
+            var enCines = await context.Peliculas.Where(x => x.EnCines).Take(top).ToListAsync();
+
+            var resultado = new PeliculasIndexDTO();
+            resultado.FuturosEstrenos = mapper.Map<List<PeliculaDTO>>(proximosEstrenos);
+            resultado.EnCines = mapper.Map<List<PeliculaDTO>>(enCines);
+            return resultado;
         }
 
         [HttpGet("{id:int}", Name ="ObtenerPelicula")]
@@ -46,6 +58,7 @@ namespace PeliculasApi.Controllers
         public async Task<ActionResult> Post([FromForm] PeliculaCreacionDTO peliculaCreacionDTO)
         {
             var pelicula = mapper.Map<Pelicula>(peliculaCreacionDTO);
+
             if (peliculaCreacionDTO.Poster != null)
             {
                 using (var memoryStream = new MemoryStream())
@@ -57,6 +70,7 @@ namespace PeliculasApi.Controllers
                 }
             }
 
+            AsignarOrdenActores(pelicula);
             context.Add(pelicula);
             await context.SaveChangesAsync();
 
@@ -64,10 +78,24 @@ namespace PeliculasApi.Controllers
             return new CreatedAtRouteResult("ObtenerPelicula", new { id = pelicula.Id }, peliculaDTO);
         }
 
+        private void AsignarOrdenActores(Pelicula pelicula)
+        {
+            if(pelicula.PeliculasActores != null)
+            {
+                for (int i = 0; i < pelicula.PeliculasActores.Count; i++)
+                {
+                    pelicula.PeliculasActores[i].Orden = i;
+                }
+            }
+        }
+
         [HttpPut("{id:int}")]
         public async Task<ActionResult> Put(int id, [FromForm] PeliculaCreacionDTO peliculaCreacionDTO)
         {
-            var peliculaDB = await context.Peliculas.FirstOrDefaultAsync(x => x.Id == id);
+            var peliculaDB = await context.Peliculas
+                                          .Include(x => x.PeliculasActores)
+                                          .Include(x => x.PeliculasGeneros)
+                                          .FirstOrDefaultAsync(x => x.Id == id);
 
             if (peliculaDB == null) { return NotFound(); }
 
@@ -83,7 +111,7 @@ namespace PeliculasApi.Controllers
                     peliculaDB.Poster = await almacenadorArchivos.EditarArchivo(contenido, extension, contenedor, peliculaDB.Poster, peliculaCreacionDTO.Poster.ContentType);
                 }
             }
-
+            AsignarOrdenActores(peliculaDB);
             await context.SaveChangesAsync();
             return NoContent();
         }
